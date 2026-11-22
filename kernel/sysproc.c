@@ -110,3 +110,19 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_checkpoint(void)
+{
+  int slot;
+  argint(0, &slot);             // argument 0 into slot. Since in kernel mode so we cant take arguments directly. a0 -> slot.
+  return checkpoint(slot);      // after this we cleanly call checkpoint(slot).
+}
+
+uint64
+sys_restore(void) 
+{
+  int slot;
+  argint(0, &slot);
+  return restore(slot);
+}

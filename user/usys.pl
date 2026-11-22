@@ -43,3 +43,7 @@ entry("sbrk");
 entry("pause");
 entry("uptime");
 entry("sync");
+entry("checkpoint");
+entry("restore");
+entry("ckptsave");
+entry("ckptload");

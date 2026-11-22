@@ -701,3 +701,13 @@ procdump(void)
     printk("\n");
   }
 }
+
+int checkpoint(int s) 
+{
+  return 0;
+}
+
+int restore(int s) 
+{
+  return 0;
+}
