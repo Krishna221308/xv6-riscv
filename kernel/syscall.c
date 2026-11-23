@@ -107,6 +107,7 @@ extern uint64 sys_checkpoint(void);
 extern uint64 sys_restore(void);
 extern uint64 sys_ckptsave(void);
 extern uint64 sys_ckptload(void);
+extern uint64 sys_ckptinfo(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -138,6 +139,7 @@ static uint64 (*syscalls[])(void) = {
   [SYS_restore] = sys_restore,
   [SYS_ckptload] = sys_ckptload,
   [SYS_ckptsave] = sys_ckptsave,
+  [SYS_ckptinfo] = sys_ckptinfo,
   // clang-format on
 };
 

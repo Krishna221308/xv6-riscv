@@ -796,3 +796,22 @@ restore(int slot)
 
   return pid;
 }
+
+int
+ckptinfo(int slot, uint64 addr)
+{
+  if (slot < 0 || slot >= NCKPT) 
+    return -1;
+
+  struct ckpt_info info;
+  acquire(&ckpt_lock);
+  info.used = ckpts[slot].used;
+  info.sz = ckpts[slot].sz;
+  safestrcpy(info.name, ckpts[slot].name, sizeof(info.name));
+  release(&ckpt_lock);
+
+  if (either_copyout(1, addr, (char *)&info, sizeof(info)) < 0) 
+    return -1;
+
+  return 0;
+}

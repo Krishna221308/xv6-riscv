@@ -47,3 +47,4 @@ entry("checkpoint");
 entry("restore");
 entry("ckptsave");
 entry("ckptload");
+entry("ckptinfo");

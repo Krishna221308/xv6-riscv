@@ -29,6 +29,12 @@ int checkpoint(int);
 int restore(int);
 int ckptsave(int, int);
 int ckptload(int, int);
+struct ckpt_info {
+  int used;
+  uint64 sz;
+  char name[16];
+};
+int ckptinfo(int, struct ckpt_info *);
 
 // ulib.c
 int stat(const char *, struct stat *);

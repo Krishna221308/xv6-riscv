@@ -105,6 +105,7 @@ int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 int             checkpoint(int);
 int             restore(int);
+int             ckptinfo(int, uint64);
 
 
 // swtch.S

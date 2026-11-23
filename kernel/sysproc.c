@@ -126,3 +126,13 @@ sys_restore(void)
   argint(0, &slot);
   return restore(slot);
 }
+
+uint64
+sys_ckptinfo(void) 
+{
+  int slot;
+  uint64 addr;
+  argint(0, &slot);
+  argaddr(1, &addr);
+  return ckptinfo(slot, addr);
+}

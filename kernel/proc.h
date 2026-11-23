@@ -126,3 +126,9 @@ struct ckpt_hdr {
 
 extern struct ckpt ckpts[NCKPT];
 extern struct spinlock ckpt_lock;
+
+struct ckpt_info {
+  int used;
+  uint64 sz;
+  char name[16];
+};
