@@ -102,3 +102,27 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
 };
+
+// --- Checkpoint / Restore Data Structures ---
+#define NCKPT 4
+#define CKPT_MAGIC 0x4304b54
+
+struct ckpt {
+  int used;
+  int busy;
+  uint64 sz;
+  pagetable_t pt;
+  struct trapframe tf;
+  char name[16];
+};
+
+struct ckpt_hdr {
+  uint magic;
+  uint npages;
+  uint64 sz;
+  char name[16];
+  struct trapframe tf;
+};
+
+extern struct ckpt ckpts[NCKPT];
+extern struct spinlock ckpt_lock;

@@ -12,6 +12,10 @@ struct proc proc[NPROC];
 
 struct proc *initproc;
 
+struct ckpt ckpts[NCKPT];
+
+struct spinlock ckpt_lock;
+
 int nextpid = 1;
 struct spinlock pid_lock;
 
@@ -48,7 +52,7 @@ void
 procinit(void)
 {
   struct proc *p;
-
+  initlock(&ckpt_lock, "ckpt");
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
   for (p = proc; p < &proc[NPROC]; p++) {
@@ -702,12 +706,93 @@ procdump(void)
   }
 }
 
-int checkpoint(int s) 
+int 
+checkpoint(int slot) 
 {
+  struct proc *p = myproc();
+  struct ckpt *c;
+  pagetable_t pt, oldpt = 0;
+  uint64 oldsz = 0;
+
+  if (slot < 0 || slot >= NCKPT) 
+    return -1;
+  
+  if ((pt = uvmcreate()) == 0) 
+    return -1;
+
+  if (uvmcopy(p->pagetable, pt, p->sz) < 0) {
+    uvmfree(pt, 0);
+    return -1;
+  }
+
+  acquire(&ckpt_lock);
+  c = &ckpts[slot];
+  if (c->busy) {
+    release(&ckpt_lock);
+    uvmfree(pt, p->sz);
+    return -1;
+  }
+
+  if (c->used) {
+    oldpt = c->pt;
+    oldsz = c->sz;
+  }
+
+  c->pt = pt;
+  c->sz = p->sz;
+  c->tf = *p->trapframe;
+  c->tf.a0 = 1;
+  safestrcpy(c->name, p->name, sizeof(c->name));
+  c->used = 1;
+  release(&ckpt_lock);
+
+  if (oldpt) 
+    uvmfree(oldpt, oldsz);
   return 0;
 }
 
-int restore(int s) 
+int 
+restore(int slot) 
 {
-  return 0;
+  struct proc *p = myproc(), *np;
+  struct ckpt *c;
+  int pid;
+
+  if (slot < 0 || slot >= NCKPT) 
+    return -1;
+  if ((np = allocproc()) == 0) 
+    return -1;
+
+  acquire(&ckpt_lock);
+  c = &ckpts[slot];
+  if (!c->used || uvmcopy(c->pt, np->pagetable, c->sz) < 0) {
+    release(&ckpt_lock);
+    freeproc(np);
+    release(&np->lock);
+    return -1;
+  }
+
+  np->sz = c->sz;
+  *(np->trapframe) = c->tf;
+  safestrcpy(np->name, c->name, sizeof(np->name));
+  release(&ckpt_lock);
+
+  for (int i = 0; i < NOFILE; ++i) {
+    if (p->ofile[i]) 
+      np->ofile[i] = filedup(p->ofile[i]);
+  }
+
+  np->cwd = idup(p->cwd);
+  pid = np->pid;
+  release(&np->lock);
+
+  acquire(&wait_lock);
+  np->parent = p;
+  release(&wait_lock);
+
+  acquire(&np->lock);
+  np->state = RUNNABLE;
+  release(&np->lock);
+
+  return pid;
 }
