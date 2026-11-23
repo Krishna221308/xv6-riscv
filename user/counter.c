@@ -1,25 +1,25 @@
 #include "kernel/types.h"
 #include "kernel/stat.h"
+#include "kernel/fcntl.h"
 #include "user/user.h"
 
 int
 main(void) 
 {
-    int x = 100;
-    for (int i = 1; i <= 8; ++i) {
-        printf("n = %d, x = %d\n", i, x);
-        if (i == 5) {
-            int r = checkpoint(0);
-            if (r == 1) {
-                printf("[restored]\n");
-            } 
-            else {
-                printf("[snapshot taken]\n");
-            }
-        }
-        x++;
-        pause(10);
-    }
+    int fd = open("log.txt", O_CREATE | O_WRONLY);
+    char msg[] = "hello\n";
+    write(fd, msg, sizeof(msg) - 1);
+
+    printf("Before checkpoint: %s", msg);
+    checkpoint(0);
+    printf("After checkpoint: %s", msg);
+
+    char msg2[] = "world after checkpoint\n";
+    write(fd, msg2, sizeof(msg2) - 1);
+
+    close(fd);
+
+    printf("New content: %s", msg2);
+
     exit(0);
 }
-

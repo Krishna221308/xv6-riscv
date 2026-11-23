@@ -529,14 +529,168 @@ sys_pipe(void)
   return 0;
 }
 
+static int
+kwrite(struct file *f, void *src, int n) 
+{
+  int i = 0, m, r;
+
+  while (i < n) {
+    m = n - i;
+    if (m > BSIZE) {
+      m = BSIZE;
+    }
+    begin_op();
+    ilock(f->ip);
+    r = writei(f->ip, 0, (uint64)src + i, f->off, m);
+    if (r > 0) {
+      f->off+=r;
+    }
+    iunlock(f->ip);
+    end_op();
+
+    if (r != m) 
+      return -1;
+
+    i += r;
+  }
+
+  return n;
+}
+
+static int
+kread(struct file *f, void *dst, int n) 
+{
+  int r;
+
+  ilock(f->ip);
+  r = readi(f->ip, 0, (uint64)dst, f->off, n);
+  if (r > 0)
+    f->off += r;
+
+  iunlock(f->ip);
+  return r;
+}
+
+uint64
+sys_ckptsave(void)
+{
+  int slot, ok = 0;
+  struct file *f;
+  struct ckpt *c;
+  struct ckpt_hdr h;
+  uint64 va, rec[2];
+  pte_t *pte;
+
+  argint(0, &slot);
+  if (slot < 0 || slot >= NCKPT) 
+    return -1;
+
+  if (argfd(1, 0, &f) < 0 || f->type != FD_INODE || !f->writable) 
+    return -1;
+
+  acquire(&ckpt_lock);
+  c = &ckpts[slot];
+  if (!c->used || c->busy) {
+    release(&ckpt_lock);
+    return -1;
+  }
+  c->busy = 1;
+  release(&ckpt_lock);
+
+  h.magic = CKPT_MAGIC;
+  h.sz = c->sz;
+  h.tf = c->tf;
+  memmove(h.name, c->name, sizeof(h.name));
+  h.npages = 0;
+  for (va = 0; va < c->sz; va += PGSIZE) {
+    if ((pte = walk(c->pt, va, 0)) != 0 && (*pte & PTE_V)) 
+      h.npages++; 
+  }
+
+  if (kwrite(f, &h, sizeof(h)) != sizeof(h)) 
+    ok = -1;
+
+  for (va = 0; ok == 0 && va < c->sz; va += PGSIZE) {
+    pte = walk(c->pt, va, 0);
+    if (pte == 0 || (*pte & PTE_V) == 0)
+      continue;
+
+    rec[0] = va;
+    rec[1] = PTE_FLAGS(*pte);
+    if (kwrite(f, rec, sizeof(rec)) != sizeof(rec) || kwrite(f, (void*)PTE2PA(*pte), PGSIZE) != PGSIZE)
+      ok = -1;
+  }
+
+  acquire(&ckpt_lock);
+  c->busy = 0;
+  release(&ckpt_lock);
+  return ok;
+}
+
 uint64
 sys_ckptload(void) 
 {
-  return 0;
-}
+  int slot;
+  struct file *f;
+  struct ckpt *c;
+  struct ckpt_hdr h;
+  pagetable_t pt, oldpt = 0;
+  uint64 rec[2], oldsz = 0;
+  uint i;
+  char *mem;
 
-uint64 
-sys_ckptsave(void)
-{
+  argint(0, &slot);
+  if (slot < 0 || slot >= NCKPT) 
+    return -1;
+
+  if (argfd(1, 0, &f) < 0 || f->type != FD_INODE || !f->readable) 
+    return -1;
+  
+  if (kread(f, &h, sizeof(h)) != sizeof(h) || h.magic != CKPT_MAGIC || h.sz > MAXVA - 2*PGSIZE)
+    return -1;
+
+  if ((pt = uvmcreate()) == 0) 
+    return -1;
+
+  for (i = 0; i < h.npages; ++i) {
+    if (kread(f, rec, sizeof(rec)) != sizeof(rec)) 
+      goto bad;
+    if (rec[0] %PGSIZE != 0 || rec[0] > h.sz) 
+      goto bad;
+    if ((mem = kalloc()) == 0) 
+      goto bad;
+    if (kread(f, mem, PGSIZE) != PGSIZE || mappages(pt, rec[0], PGSIZE, (uint64)mem, rec[1] & (PTE_R | PTE_W | PTE_X | PTE_U)) != 0) {
+      kfree(mem);
+      goto bad;
+    }
+  }
+
+  acquire(&ckpt_lock);
+  c = &ckpts[slot];
+  if (c->busy) {
+    release(&ckpt_lock);
+    goto bad;
+  }
+
+  if (c->used) {
+    oldpt = c->pt;
+    oldsz = c->sz;
+  }
+
+  c->pt = pt;
+  c->sz = h.sz;
+  c->tf = h.tf;
+  memmove(c->name, h.name, sizeof(c->name));
+  c->name[sizeof(c->name) - 1] = 0;
+  c->used = 1;
+  release(&ckpt_lock);
+
+  if (oldpt) 
+    uvmfree(oldpt, oldsz);
   return 0;
+
+  bad:
+    uvmfree(pt, h.sz);
+    return -1;
+
 }

@@ -153,6 +153,7 @@ UPROGS=\
 	$U/_sync\
 	$U/_counter\
 	$U/_restore\
+	$U/_ckptsave\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
