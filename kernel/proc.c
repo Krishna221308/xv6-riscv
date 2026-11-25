@@ -714,7 +714,20 @@ checkpoint(int slot)
   pagetable_t pt, oldpt = 0;
   uint64 oldsz = 0;
 
-  if (slot < 0 || slot >= NCKPT) 
+
+  if (slot == -1) {
+    acquire(&ckpt_lock);
+    for (int i = 0; i < NCKPT; ++i) {
+      if (!ckpt[i].used && !ckpt[i].busy) {
+        slot = i;
+        break;
+      }
+    }  
+    release(&ckpt_lock);
+    if (slot == -1)
+      return -1;                                //basically no empty slot.
+  }
+  else if (slot < 0 || slot >= NCKPT) 
     return -1;
   
   if ((pt = uvmcreate()) == 0) 
@@ -741,14 +754,15 @@ checkpoint(int slot)
   c->pt = pt;
   c->sz = p->sz;
   c->tf = *p->trapframe;
-  c->tf.a0 = 1;
+  c->tf.a0 = 100;
   safestrcpy(c->name, p->name, sizeof(c->name));
   c->used = 1;
   release(&ckpt_lock);
 
   if (oldpt) 
     uvmfree(oldpt, oldsz);
-  return 0;
+  
+  return slot;                                     // we now return slot so the program knows which slot it was placed into due to -1.
 }
 
 int 
