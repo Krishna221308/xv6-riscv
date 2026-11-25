@@ -829,3 +829,34 @@ ckptinfo(int slot, uint64 addr)
 
   return 0;
 }
+
+int 
+rmckpt(int slot)
+{
+  if (slot < 0 || slot >= NCKPT)
+    return -1;
+
+  pagetable_t pt = 0;
+  uint64 sz = 0;
+
+  acquire(&ckpt_lock);
+  struct ckpt *c = &ckpts[slot];
+  if (!c->used || c->busy) {
+    release(&ckpt_lock);
+    return -1;
+  }
+
+  pt = c->pt;
+  sz = c->sz;
+  // clearing c;
+  c->pt = 0;
+  c->sz = 0;
+  c->used = 0;
+  c->name[0] = 0;
+  release(&ckpt_lock);
+
+  if (pt) 
+    uvmfree(pt, sz);          // freeieng memory outside lock.
+
+  return 0;
+}

@@ -26,3 +26,4 @@
 #define SYS_ckptsave 25
 #define SYS_ckptload 26
 #define SYS_ckptinfo 27
+#define SYS_rmckpt 28

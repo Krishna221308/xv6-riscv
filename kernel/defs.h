@@ -106,6 +106,7 @@ void            procdump(void);
 int             checkpoint(int);
 int             restore(int);
 int             ckptinfo(int, uint64);
+int             rmckpt(int);
 
 
 // swtch.S

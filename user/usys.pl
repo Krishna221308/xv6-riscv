@@ -48,3 +48,4 @@ entry("restore");
 entry("ckptsave");
 entry("ckptload");
 entry("ckptinfo");
+entry("rmckpt");

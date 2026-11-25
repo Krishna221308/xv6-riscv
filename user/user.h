@@ -35,6 +35,7 @@ struct ckpt_info {
   char name[16];
 };
 int ckptinfo(int, struct ckpt_info *);
+int rmckpt(int);
 
 // ulib.c
 int stat(const char *, struct stat *);

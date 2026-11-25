@@ -155,6 +155,7 @@ UPROGS=\
 	$U/_restore\
 	$U/_ckptsave\
 	$U/_lsckpt\
+	$U/_rmckpt\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

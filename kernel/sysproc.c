@@ -136,3 +136,11 @@ sys_ckptinfo(void)
   argaddr(1, &addr);
   return ckptinfo(slot, addr);
 }
+
+uint64
+sys_rmckpt(void) 
+{
+  int slot;
+  argint(0, &slot);
+  return rmckpt(slot);
+}
